@@ -11,7 +11,7 @@ defmodule Phauxth.Confirm.Report do
   """
   def report(%{reset_sent_at: nil}, :pass_reset, meta) do
     Log.warn(%Log{message: "no reset token found", meta: meta})
-    {:error, Config.user_messages().default_error()}
+    {:error, "no reset token found"}
   end
 
   def report(%{reset_sent_at: time} = user, :pass_reset, meta) when not is_nil(time) do
@@ -31,7 +31,7 @@ defmodule Phauxth.Confirm.Report do
 
   def report({:error, message}, _, meta) do
     Log.warn(%Log{message: message, meta: meta})
-    {:error, Config.user_messages().default_error()}
+    {:error, message || Config.user_messages().default_error()}
   end
 
   def report(nil, _, meta), do: report({:error, "no user found"}, nil, meta)
