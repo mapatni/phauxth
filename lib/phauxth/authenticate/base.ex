@@ -102,8 +102,8 @@ defmodule Phauxth.Authenticate.Base do
 
       def get_user(%Plug.Conn{req_headers: headers} = conn, {:token, max_age, user_context, opts}) do
         with {_, token} <- List.keyfind(headers, "authorization", 0),
-             {:ok, user_id} <- check_token(conn, token, max_age, opts),
-             do: user_context.get(user_id)
+             {:ok, user} <- check_token(conn, token, max_age, opts, user_context),
+             do: user
       end
 
       @doc """
@@ -111,15 +111,21 @@ defmodule Phauxth.Authenticate.Base do
       """
       def check_session(conn) do
         with <<session_id::binary-size(17), user_id::binary>> <-
-               get_session(conn, :phauxth_session_id),
+          get_session(conn, :phauxth_session_id),
              do: {session_id, user_id}
       end
 
       @doc """
       Check the token for the current user.
       """
-      def check_token(conn, token, max_age, opts) do
-        Token.verify(conn, token, max_age, opts)
+      def check_token(conn, token, max_age, opts, user_context) do
+        with {user} <- user_context.get_by(%{"session_id" => token}),
+             %{sessions: sessions} = user,
+             timestamp when is_integer(timestamp) <- sessions[token],
+             do:
+               (timestamp + max_age > System.system_time(:second) and user) ||
+                 {:error, "token expired"}
+        # Token.verify(conn, token, max_age, opts)
       end
 
       @doc """
@@ -159,7 +165,7 @@ defmodule Phauxth.Authenticate.Base do
                      call: 2,
                      get_user: 2,
                      check_session: 1,
-                     check_token: 4,
+                     check_token: 5,
                      report: 2,
                      set_user: 2
     end
